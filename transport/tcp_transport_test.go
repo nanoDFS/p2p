@@ -1,10 +1,13 @@
 package transport
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewTransport(t *testing.T) {
-	_, err := NewTransport(":8000")
+	port := ":8000"
+	_, err := NewTCPTransport(port)
 	if err != nil {
-		t.Error("Failed to create")
+		t.Errorf("Failed to create server at port: %s", port)
 	}
 }
