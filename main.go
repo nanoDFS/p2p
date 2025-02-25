@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/nanoDFS/p2p/encoder"
@@ -20,26 +19,23 @@ func main() {
 	if err != nil {
 		fmt.Println("Got error")
 	}
-	server.Start()
+	server.Listen()
 
 	time.Sleep(time.Second * 4)
 
 	go func() {
-		rec := <-server.Queue
+		rec := <-server.IncommingMsgQueue
 		var g Greet
 		encoder.GOBDecoder{}.Decode(bytes.NewBuffer(rec.Payload), &g)
 		fmt.Println(g)
 
 	}()
 
-	conn, _ := net.Dial("tcp", ":9000")
 	d := Greet{Msg: "Hi from client"}
-	var buff bytes.Buffer
-	enc := encoder.GOBEncoder{}
 
-	enc.Encode(d, &buff)
+	client, _ := transport.NewTCPTransport(":8990")
 
-	conn.Write(buff.Bytes())
+	client.Send(":9000", d)
 
 	select {}
 }

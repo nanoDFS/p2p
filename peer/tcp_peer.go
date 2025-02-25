@@ -3,5 +3,13 @@ package peer
 import "net"
 
 type TCPPeer struct {
-	Addr net.Addr
+	Conn net.Conn
+}
+
+func (p *TCPPeer) GetAddress() net.Addr {
+	return p.Conn.RemoteAddr()
+}
+
+func (p *TCPPeer) GetConnection() net.Conn {
+	return p.Conn
 }
