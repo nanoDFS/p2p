@@ -13,3 +13,4 @@ func (p *TCPPeer) GetAddress() net.Addr {
 func (p *TCPPeer) GetConnection() net.Conn {
 	return p.Conn
 }
+

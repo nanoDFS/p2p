@@ -1,6 +1,7 @@
 package transport
 
 import (
+
 	"bytes"
 	"fmt"
 	"log"
@@ -32,6 +33,7 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 		return nil, fmt.Errorf("invalid address type, %v", err)
 	}
 	return &TCPTransport{
+
 		ListenAddr:        address,
 		IncommingMsgQueue: make(chan Message),
 		Encoder:           encoder.GOBEncoder{},
@@ -51,6 +53,7 @@ func (t *TCPTransport) Listen() error {
 	go t.connectionLoop(listener)
 	return nil
 }
+
 
 func (t *TCPTransport) Stop() error {
 	t.quitChan <- struct{}{}
@@ -120,6 +123,7 @@ func (t *TCPTransport) connectionLoop(listener net.Listener) {
 }
 
 func (t *TCPTransport) handleConnection(conn net.Conn) error {
+
 	defer func() {
 		log.Printf("Dropping connection: %s\n", conn.RemoteAddr())
 		conn.Close()
@@ -131,8 +135,10 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
+
 		fmt.Printf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
 		log.Printf("Recieved data form %s", conn.RemoteAddr())
+
 	}
 }

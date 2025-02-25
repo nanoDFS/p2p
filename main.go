@@ -36,6 +36,4 @@ func main() {
 	client, _ := transport.NewTCPTransport(":8990")
 
 	client.Send(":9000", d)
-
-	select {}
 }
