@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/nanoDFS/p2p/encoder"
 	"github.com/nanoDFS/p2p/peer"
@@ -20,6 +21,9 @@ type TCPTransport struct {
 	Encoder           encoder.Encoder
 	OnAcceptingConn   func(conn net.Conn)
 	PeersMap          map[net.Addr]peer.Peer
+
+	quitChan chan struct{}
+	wg       sync.WaitGroup
 }
 
 func NewTCPTransport(addr string) (*TCPTransport, error) {
@@ -32,6 +36,8 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 		IncommingMsgQueue: make(chan Message),
 		Encoder:           encoder.GOBEncoder{},
 		PeersMap:          make(map[net.Addr]peer.Peer),
+		quitChan:          make(chan struct{}),
+		wg:                sync.WaitGroup{},
 	}, nil
 }
 
@@ -46,10 +52,15 @@ func (t *TCPTransport) Listen() error {
 	return nil
 }
 
+func (t *TCPTransport) Stop() error {
+	t.quitChan <- struct{}{}
+	return nil
+}
+
 func (t *TCPTransport) Send(addr string, data any) error {
 	peerNode, err := t.dial(addr)
 	if err != nil {
-		return fmt.Errorf("failed to establish connection with %s", addr)
+		return err
 	}
 
 	var buff bytes.Buffer
@@ -68,7 +79,7 @@ func (t *TCPTransport) Send(addr string, data any) error {
 func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 	tcp_addr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid address %s , %v", addr, err)
+		return nil, err
 	}
 	if conn := t.PeersMap[tcp_addr]; conn != nil {
 		return conn, nil
@@ -82,17 +93,29 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 }
 
 func (t *TCPTransport) connectionLoop(listener net.Listener) {
-	defer listener.Close()
+	defer func() {
+		log.Printf("Shutting down server: %s", t.ListenAddr)
+		t.wg.Done()
+		listener.Close()
+	}()
+
+	t.wg.Add(1)
 	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Printf("failed to establish connection with %s", t.ListenAddr.String())
+		select {
+		case <-t.quitChan:
+			return
+		default:
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Printf("failed to establish connection with %s", t.ListenAddr.String())
+			}
+
+			t.PeersMap[conn.RemoteAddr()] = &peer.TCPPeer{Conn: conn}
+			if t.OnAcceptingConn != nil {
+				t.OnAcceptingConn(conn)
+			}
+			go t.handleConnection(conn)
 		}
-		t.PeersMap[conn.RemoteAddr()] = &peer.TCPPeer{Conn: conn}
-		if t.OnAcceptingConn != nil {
-			t.OnAcceptingConn(conn)
-		}
-		go t.handleConnection(conn)
 	}
 }
 
