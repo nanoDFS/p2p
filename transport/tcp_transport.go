@@ -1,7 +1,6 @@
 package transport
 
 import (
-
 	"bytes"
 	"fmt"
 	"log"
@@ -54,7 +53,6 @@ func (t *TCPTransport) Listen() error {
 	return nil
 }
 
-
 func (t *TCPTransport) Stop() error {
 	t.quitChan <- struct{}{}
 	return nil
@@ -66,7 +64,6 @@ func (t *TCPTransport) Send(addr string, data any) error {
 		return err
 	}
 
-	defer peerNode.Close()
 	var buff bytes.Buffer
 	err = t.Encoder.Encode(data, &buff)
 	if err != nil {
