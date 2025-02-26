@@ -2,9 +2,12 @@ package transport
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/nanoDFS/p2p/encoder"
@@ -20,10 +23,9 @@ type TCPTransport struct {
 	IncommingMsgQueue chan Message
 	Encoder           encoder.Encoder
 	OnAcceptingConn   func(conn net.Conn)
-	PeersMap          map[net.Addr]peer.Peer
-
-	quitChan chan struct{}
-	wg       sync.WaitGroup
+	PeersMap          map[string]peer.Peer
+	listener          net.Listener
+	wg                sync.WaitGroup
 }
 
 func NewTCPTransport(addr string) (*TCPTransport, error) {
@@ -36,26 +38,24 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 		ListenAddr:        address,
 		IncommingMsgQueue: make(chan Message),
 		Encoder:           encoder.GOBEncoder{},
-		PeersMap:          make(map[net.Addr]peer.Peer),
-		quitChan:          make(chan struct{}),
+		PeersMap:          make(map[string]peer.Peer),
 		wg:                sync.WaitGroup{},
 	}, nil
 }
 
 func (t *TCPTransport) Listen() error {
-	listener, err := net.Listen(t.ListenAddr.Network(), t.ListenAddr.String())
+	var err error
+	t.listener, err = net.Listen(t.ListenAddr.Network(), t.ListenAddr.String())
 	if err != nil {
 		return fmt.Errorf("failed to start server, %v", err)
 	}
 	log.Printf("Started listening at port %s", t.ListenAddr)
-
-	go t.connectionLoop(listener)
+	go t.connectionLoop()
 	return nil
 }
 
 func (t *TCPTransport) Stop() error {
-	t.quitChan <- struct{}{}
-	return nil
+	return t.listener.Close()
 }
 
 func (t *TCPTransport) Send(addr string, data any) error {
@@ -78,11 +78,7 @@ func (t *TCPTransport) Send(addr string, data any) error {
 }
 
 func (t *TCPTransport) Close(addr string) error {
-	peerNode, _ := t.getConnection(addr)
-	if peerNode != nil {
-		return peerNode.Close()
-	}
-	return fmt.Errorf("failed to close connection")
+	return t.dropConnection(addr)
 }
 
 func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
@@ -98,30 +94,29 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 	return t.addConnection(conn), nil
 }
 
-func (t *TCPTransport) connectionLoop(listener net.Listener) {
+func (t *TCPTransport) connectionLoop() {
 	defer func() {
 		log.Printf("Shutting down server: %s", t.ListenAddr)
 		t.wg.Done()
-		listener.Close()
 	}()
 
 	t.wg.Add(1)
 	for {
-		select {
-		case <-t.quitChan:
-			return
-		default:
-			conn, err := listener.Accept()
-			if err != nil {
-				log.Printf("failed to establish connection with %s", t.ListenAddr.String())
-			}
 
-			t.PeersMap[conn.RemoteAddr()] = &peer.TCPPeer{Conn: conn}
-			if t.OnAcceptingConn != nil {
-				t.OnAcceptingConn(conn)
-			}
-			go t.handleConnection(conn)
+		conn, err := t.listener.Accept()
+		if errors.Is(err, net.ErrClosed) {
+			return
 		}
+		if err != nil {
+			log.Printf("failed to establish connection with %s", t.ListenAddr.String())
+		}
+
+		t.addConnection(conn)
+		if t.OnAcceptingConn != nil {
+			t.OnAcceptingConn(conn)
+		}
+		go t.handleConnection(conn)
+
 	}
 }
 
@@ -129,17 +124,19 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 
 	defer func() {
 		log.Printf("Dropping connection: %s\n", conn.RemoteAddr())
-		conn.Close()
 	}()
 
 	var buffer = make([]byte, 1024)
 	for {
 		n, err := conn.Read(buffer)
+		if err == io.EOF {
+			return err
+		}
 		if err != nil {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
 
-		fmt.Printf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
+		log.Printf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
 		log.Printf("Recieved data form %s", conn.RemoteAddr())
 
@@ -147,10 +144,7 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 }
 
 func (t *TCPTransport) getConnection(addr string) (peer.Peer, error) {
-	tcp_addr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
+	tcp_addr := t.buildAddress(addr)
 	if conn := t.PeersMap[tcp_addr]; conn != nil {
 		return conn, nil
 	}
@@ -158,6 +152,23 @@ func (t *TCPTransport) getConnection(addr string) (peer.Peer, error) {
 }
 
 func (t *TCPTransport) addConnection(conn net.Conn) peer.Peer {
-	t.PeersMap[conn.RemoteAddr()] = &peer.TCPPeer{Conn: conn}
-	return t.PeersMap[conn.RemoteAddr()]
+	t.PeersMap[conn.RemoteAddr().String()] = &peer.TCPPeer{Conn: conn}
+	return t.PeersMap[conn.RemoteAddr().String()]
+}
+
+func (t *TCPTransport) dropConnection(addr string) error {
+	if conn, _ := t.getConnection(addr); conn != nil {
+		delete(t.PeersMap, conn.GetAddress().String())
+		return conn.Close()
+	} else {
+		return fmt.Errorf("no existing connections found")
+	}
+}
+
+func (t *TCPTransport) buildAddress(addr string) string {
+	if strings.HasPrefix(addr, ":") {
+		return "127.0.0.1" + addr
+	} else {
+		return addr
+	}
 }

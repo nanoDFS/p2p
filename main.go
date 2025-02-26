@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/nanoDFS/p2p/encoder"
@@ -21,8 +22,6 @@ func main() {
 	}
 	server.Listen()
 
-	time.Sleep(time.Second * 4)
-
 	go func() {
 		rec := <-server.IncommingMsgQueue
 		var g Greet
@@ -34,6 +33,15 @@ func main() {
 	d := Greet{Msg: "Hi from client"}
 
 	client, _ := transport.NewTCPTransport(":8990")
-
+	time.Sleep(time.Second * 2)
 	client.Send(":9000", d)
+
+	server.Stop()
+	client.Close(":9000")
+	if err := client.Send(":9000", d); err != nil {
+		log.Printf("Got error : %v", err)
+	}
+
+	time.Sleep(time.Second * 2)
+
 }

@@ -1,6 +1,5 @@
 package transport
 
-
 import (
 	"bytes"
 	"log"
@@ -30,12 +29,17 @@ func TestNewTransport(t *testing.T) {
 		if data != msg {
 			t.Errorf("Expected %s, found %s", data, msg)
 		}
-		server.Stop()
+		//server.Stop()
 	}()
 
 	if err := node.Send(port, data); err != nil {
 		t.Errorf("Failed to send message to server: %s, %v", port, err)
 	}
+
+	// err = server.Stop()
+	// if err != nil {
+	// 	t.Errorf("Failed to stop server: %s, %v", port, err)
+	// }
 
 	time.Sleep(time.Microsecond * 5)
 }
