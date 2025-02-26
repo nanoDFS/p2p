@@ -14,3 +14,6 @@ func (p *TCPPeer) GetConnection() net.Conn {
 	return p.Conn
 }
 
+func (p *TCPPeer) Close() error {
+	return p.Conn.Close()
+}

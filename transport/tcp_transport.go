@@ -66,6 +66,7 @@ func (t *TCPTransport) Send(addr string, data any) error {
 		return err
 	}
 
+	defer peerNode.Close()
 	var buff bytes.Buffer
 	err = t.Encoder.Encode(data, &buff)
 	if err != nil {
@@ -79,20 +80,25 @@ func (t *TCPTransport) Send(addr string, data any) error {
 	return nil
 }
 
-func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
-	tcp_addr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return nil, err
+func (t *TCPTransport) Close(addr string) error {
+	peerNode, _ := t.getConnection(addr)
+	if peerNode != nil {
+		return peerNode.Close()
 	}
-	if conn := t.PeersMap[tcp_addr]; conn != nil {
-		return conn, nil
+	return fmt.Errorf("failed to close connection")
+}
+
+func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
+	peerNode, _ := t.getConnection(addr)
+	if peerNode != nil {
+		return peerNode, nil
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
-	t.PeersMap[tcp_addr] = &peer.TCPPeer{Conn: conn}
-	return t.PeersMap[tcp_addr], nil
+
+	return t.addConnection(conn), nil
 }
 
 func (t *TCPTransport) connectionLoop(listener net.Listener) {
@@ -141,4 +147,20 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 		log.Printf("Recieved data form %s", conn.RemoteAddr())
 
 	}
+}
+
+func (t *TCPTransport) getConnection(addr string) (peer.Peer, error) {
+	tcp_addr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if conn := t.PeersMap[tcp_addr]; conn != nil {
+		return conn, nil
+	}
+	return nil, fmt.Errorf("failed to get connection")
+}
+
+func (t *TCPTransport) addConnection(conn net.Conn) peer.Peer {
+	t.PeersMap[conn.RemoteAddr()] = &peer.TCPPeer{Conn: conn}
+	return t.PeersMap[conn.RemoteAddr()]
 }

@@ -1,5 +1,7 @@
 package transport
 
 type Transport interface {
-	Start() error
+	Listen() error
+	Stop() error
+	Send(addr string, data any) error
 }
