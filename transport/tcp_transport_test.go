@@ -36,7 +36,6 @@ func TestSend(t *testing.T) {
 		if data != msg {
 			t.Errorf("Expected %s, found %s", data, msg)
 		}
-		//server.Stop()
 	}()
 
 	if err := node.Send(port, data); err != nil {
