@@ -17,3 +17,4 @@ func (p *TCPPeer) GetConnection() net.Conn {
 func (p *TCPPeer) Close() error {
 	return p.Conn.Close()
 }
+

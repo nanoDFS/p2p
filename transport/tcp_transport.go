@@ -1,13 +1,17 @@
 package transport
 
 import (
+
 	"bytes"
 	"errors"
+
 	"fmt"
 	"io"
 	"log"
 	"net"
+
 	"strings"
+
 	"sync"
 
 	"github.com/nanoDFS/p2p/encoder"
@@ -23,6 +27,7 @@ type TCPTransport struct {
 	IncommingMsgQueue chan Message
 	Encoder           encoder.Encoder
 	OnAcceptingConn   func(conn net.Conn)
+
 	PeersMap          map[string]peer.Peer
 	listener          net.Listener
 	wg                sync.WaitGroup
@@ -38,18 +43,22 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 		ListenAddr:        address,
 		IncommingMsgQueue: make(chan Message),
 		Encoder:           encoder.GOBEncoder{},
+
 		PeersMap:          make(map[string]peer.Peer),
 		wg:                sync.WaitGroup{},
 	}, nil
 }
 
 func (t *TCPTransport) Listen() error {
+
 	var err error
 	t.listener, err = net.Listen(t.ListenAddr.Network(), t.ListenAddr.String())
+
 	if err != nil {
 		return fmt.Errorf("failed to start server, %v", err)
 	}
 	log.Printf("Started listening at port %s", t.ListenAddr)
+
 	go t.connectionLoop()
 	return nil
 }
@@ -64,6 +73,7 @@ func (t *TCPTransport) Send(addr string, data any) error {
 		return err
 	}
 
+
 	var buff bytes.Buffer
 	err = t.Encoder.Encode(data, &buff)
 	if err != nil {
@@ -77,6 +87,7 @@ func (t *TCPTransport) Send(addr string, data any) error {
 	return nil
 }
 
+
 func (t *TCPTransport) Close(addr string) error {
 	return t.dropConnection(addr)
 }
@@ -85,6 +96,7 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 	peerNode, _ := t.getConnection(addr)
 	if peerNode != nil {
 		return peerNode, nil
+
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
 	if err != nil {
@@ -98,10 +110,12 @@ func (t *TCPTransport) connectionLoop() {
 	defer func() {
 		log.Printf("Shutting down server: %s", t.ListenAddr)
 		t.wg.Done()
+
 	}()
 
 	t.wg.Add(1)
 	for {
+
 
 		conn, err := t.listener.Accept()
 		if errors.Is(err, net.ErrClosed) {
@@ -135,6 +149,7 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
+
 
 		log.Printf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}

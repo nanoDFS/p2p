@@ -18,6 +18,7 @@ func TestNewTransport(t *testing.T) {
 	if err := server.Listen(); err != nil {
 		t.Errorf("Failed to start server at port: %s", port)
 	}
+
 	node, _ := NewTCPTransport(":8800")
 	data := "Hi sample data"
 
@@ -29,17 +30,11 @@ func TestNewTransport(t *testing.T) {
 		if data != msg {
 			t.Errorf("Expected %s, found %s", data, msg)
 		}
-		//server.Stop()
+
 	}()
 
 	if err := node.Send(port, data); err != nil {
 		t.Errorf("Failed to send message to server: %s, %v", port, err)
 	}
-
-	// err = server.Stop()
-	// if err != nil {
-	// 	t.Errorf("Failed to stop server: %s, %v", port, err)
-	// }
-
 	time.Sleep(time.Microsecond * 5)
 }
