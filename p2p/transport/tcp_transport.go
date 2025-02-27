@@ -59,6 +59,20 @@ func (t *TCPTransport) Stop() error {
 }
 
 func (t *TCPTransport) Send(addr string, data any) error {
+	go t.send(addr, data)
+	return nil
+}
+
+func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) error {
+	data := <-t.IncommingMsgQueue
+	return decoder.Decode(bytes.NewBuffer(data.Payload), writer)
+}
+
+func (t *TCPTransport) Close(addr string) error {
+	return t.dropConnection(addr)
+}
+
+func (t *TCPTransport) send(addr string, data any) error {
 	peerNode, err := t.dial(addr)
 	if err != nil {
 		return err
@@ -75,15 +89,6 @@ func (t *TCPTransport) Send(addr string, data any) error {
 	}
 	log.Printf("successfully wrote %d bytes to %s", n, addr)
 	return nil
-}
-
-func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) error {
-	data := <-t.IncommingMsgQueue
-	return decoder.Decode(bytes.NewBuffer(data.Payload), writer)
-}
-
-func (t *TCPTransport) Close(addr string) error {
-	return t.dropConnection(addr)
 }
 
 func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
