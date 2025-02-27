@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nanoDFS/p2p/encoder"
-	"github.com/nanoDFS/p2p/peer"
+	"github.com/nanoDFS/p2p/p2p/encoder"
+	"github.com/nanoDFS/p2p/p2p/peer"
 )
 
 type Message struct {
