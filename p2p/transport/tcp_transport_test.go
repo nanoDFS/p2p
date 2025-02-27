@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanoDFS/p2p/encoder"
+	"github.com/nanoDFS/p2p/p2p/encoder"
 )
 
 func getServer(addr string) (*TCPTransport, error) {
