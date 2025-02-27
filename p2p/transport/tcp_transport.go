@@ -77,6 +77,11 @@ func (t *TCPTransport) Send(addr string, data any) error {
 	return nil
 }
 
+func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) error {
+	data := <-t.IncommingMsgQueue
+	return decoder.Decode(bytes.NewBuffer(data.Payload), writer)
+}
+
 func (t *TCPTransport) Close(addr string) error {
 	return t.dropConnection(addr)
 }

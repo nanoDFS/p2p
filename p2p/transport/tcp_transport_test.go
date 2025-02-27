@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"bytes"
 	"log"
 	"testing"
 	"time"
@@ -29,9 +28,8 @@ func TestSend(t *testing.T) {
 	data := "Hi sample data"
 
 	go func() {
-		rec := <-server.IncommingMsgQueue
 		var msg string
-		encoder.GOBDecoder{}.Decode(bytes.NewBuffer(rec.Payload), &msg)
+		server.Consume(encoder.GOBDecoder{}, msg)
 		log.Println(msg)
 		if data != msg {
 			t.Errorf("Expected %s, found %s", data, msg)
