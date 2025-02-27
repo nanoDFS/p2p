@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -59,7 +60,7 @@ func (t *TCPTransport) Stop() error {
 }
 
 func (t *TCPTransport) Send(addr string, data any) error {
-	go t.send(addr, data)
+	t.send(addr, data)
 	return nil
 }
 
@@ -77,13 +78,15 @@ func (t *TCPTransport) send(addr string, data any) error {
 	if err != nil {
 		return err
 	}
+	var msg bytes.Buffer
+	_ = t.Encoder.Encode(data, &msg)
 
-	var buff bytes.Buffer
-	err = t.Encoder.Encode(data, &buff)
-	if err != nil {
-		return fmt.Errorf("failed to encode data: %s, %v", data, err)
-	}
-	n, err := peerNode.GetConnection().Write(buff.Bytes())
+	length := uint32(len(msg.Bytes()))
+	lengthBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(lengthBytes, length)
+
+	peerNode.GetConnection().Write(lengthBytes)
+	n, err := peerNode.GetConnection().Write(msg.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to send data to %s, %v", addr, err)
 	}
@@ -97,6 +100,7 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 		return peerNode, nil
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
+	t.addConnection(conn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
@@ -136,12 +140,19 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 		log.Printf("Dropping connection: %s\n", conn.RemoteAddr())
 	}()
 
-	var buffer = make([]byte, 1024)
 	for {
-		n, err := conn.Read(buffer)
+		// first 4 bytes are used for message length
+		lengthBytes := make([]byte, 4)
+		_, err := conn.Read(lengthBytes)
+		length := binary.BigEndian.Uint32(lengthBytes)
+
 		if err == io.EOF {
 			return err
 		}
+
+		var buffer = make([]byte, length)
+		n, err := conn.Read(buffer)
+
 		if err != nil {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}

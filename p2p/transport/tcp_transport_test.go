@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -24,12 +25,12 @@ func TestSend(t *testing.T) {
 	server, _ := getServer(port)
 	server.Listen()
 	node, _ := NewTCPTransport(":8800")
-	data := "Some new data"
-
+	data := "TCP is really amazing"
 	go func() {
 		for {
 			var msg string
 			server.Consume(encoder.GOBDecoder{}, &msg)
+			log.Println(msg)
 			if data != msg {
 				t.Errorf("Expected %s, found %s", data, msg)
 			}
