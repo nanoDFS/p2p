@@ -25,7 +25,7 @@ func TestSend(t *testing.T) {
 	server, _ := getServer(port)
 	server.Listen()
 	node, _ := NewTCPTransport(":8800")
-	data := "Hi sample data"
+	data := "Some new data"
 
 	go func() {
 		var msg string
