@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strings"
 	"sync"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/nanoDFS/p2p/p2p/encoder"
 	"github.com/nanoDFS/p2p/p2p/peer"
@@ -50,7 +51,7 @@ func (t *TCPTransport) Listen() error {
 	if err != nil {
 		return fmt.Errorf("failed to start server, %v", err)
 	}
-	log.Printf("Started listening at port %s", t.ListenAddr)
+	log.Infof("Started listening at port %s", t.ListenAddr)
 	go t.connectionLoop()
 	return nil
 }
@@ -90,7 +91,7 @@ func (t *TCPTransport) send(addr string, data any) error {
 	if err != nil {
 		return fmt.Errorf("failed to send data to %s, %v", addr, err)
 	}
-	log.Printf("successfully wrote %d bytes to %s", n, addr)
+	log.Debugf("successfully wrote %d bytes to %s", n, addr)
 	return nil
 }
 
@@ -110,7 +111,7 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 
 func (t *TCPTransport) connectionLoop() {
 	defer func() {
-		log.Printf("Shutting down server: %s", t.ListenAddr)
+		log.Infof("Shutting down server: %s", t.ListenAddr)
 		t.wg.Done()
 	}()
 
@@ -122,7 +123,7 @@ func (t *TCPTransport) connectionLoop() {
 			return
 		}
 		if err != nil {
-			log.Printf("failed to establish connection with %s", t.ListenAddr.String())
+			log.Warnf("failed to establish connection with %s", t.ListenAddr.String())
 		}
 
 		t.addConnection(conn)
@@ -137,7 +138,7 @@ func (t *TCPTransport) connectionLoop() {
 func (t *TCPTransport) handleConnection(conn net.Conn) error {
 
 	defer func() {
-		log.Printf("Dropping connection: %s\n", conn.RemoteAddr())
+		log.Infof("Dropping connection: %s\n", conn.RemoteAddr())
 	}()
 
 	for {
@@ -157,9 +158,9 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
 
-		log.Printf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
+		log.Debugf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
-		log.Printf("Recieved data form %s", conn.RemoteAddr())
+		log.Debugf("Recieved data form %s", conn.RemoteAddr())
 
 	}
 }
