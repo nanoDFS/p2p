@@ -161,9 +161,8 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
 
-		log.Infof("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
+		log.Debugf("Recieved message of length %d from %s", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
-		log.Infof("Recieved data form %s", conn.RemoteAddr())
 
 	}
 }
