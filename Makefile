@@ -24,7 +24,7 @@ proto:
 
 
 req: 
-	echo "$(msg)" | nc 127.0.0.1 9000
+	echo "$(msg)" | nc 127.0.0.1 $(port)
 
 default: build
 

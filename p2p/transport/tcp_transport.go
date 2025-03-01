@@ -25,9 +25,11 @@ type TCPTransport struct {
 	IncommingMsgQueue chan Message
 	Encoder           encoder.Encoder
 	OnAcceptingConn   func(conn net.Conn)
-	PeersMap          map[string]peer.Peer
-	listener          net.Listener
-	wg                sync.WaitGroup
+
+	mu       *sync.RWMutex
+	PeersMap map[string]peer.Peer
+	listener net.Listener
+	wg       sync.WaitGroup
 }
 
 func NewTCPTransport(addr string) (*TCPTransport, error) {
@@ -42,6 +44,7 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 		Encoder:           encoder.GOBEncoder{},
 		PeersMap:          make(map[string]peer.Peer),
 		wg:                sync.WaitGroup{},
+		mu:                &sync.RWMutex{},
 	}, nil
 }
 
@@ -51,7 +54,7 @@ func (t *TCPTransport) Listen() error {
 	if err != nil {
 		return fmt.Errorf("failed to start server, %v", err)
 	}
-	log.Infof("Started listening at port %s", t.ListenAddr)
+	log.Infof("TCP: Started listening at port %s", t.ListenAddr)
 	go t.connectionLoop()
 	return nil
 }
@@ -138,6 +141,7 @@ func (t *TCPTransport) connectionLoop() {
 func (t *TCPTransport) handleConnection(conn net.Conn) error {
 
 	defer func() {
+		t.dropConnection(conn.RemoteAddr().String())
 		log.Infof("Dropping connection: %s\n", conn.RemoteAddr())
 	}()
 
@@ -158,14 +162,16 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 			return fmt.Errorf("failed to read from %s", conn.RemoteAddr())
 		}
 
-		log.Debugf("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
+		log.Infof("Recieved message of length %d from %s\n", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
-		log.Debugf("Recieved data form %s", conn.RemoteAddr())
+		log.Infof("Recieved data form %s", conn.RemoteAddr())
 
 	}
 }
 
 func (t *TCPTransport) getConnection(addr string) (peer.Peer, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	tcp_addr := t.buildAddress(addr)
 	if conn := t.PeersMap[tcp_addr]; conn != nil {
 		return conn, nil
@@ -174,8 +180,11 @@ func (t *TCPTransport) getConnection(addr string) (peer.Peer, error) {
 }
 
 func (t *TCPTransport) addConnection(conn net.Conn) peer.Peer {
+	t.mu.Lock()
 	t.PeersMap[conn.RemoteAddr().String()] = &peer.TCPPeer{Conn: conn}
-	return t.PeersMap[conn.RemoteAddr().String()]
+	res := t.PeersMap[conn.RemoteAddr().String()]
+	t.mu.Unlock()
+	return res
 }
 
 func (t *TCPTransport) dropConnection(addr string) error {
