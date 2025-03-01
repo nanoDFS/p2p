@@ -64,8 +64,7 @@ func (t *TCPTransport) Stop() error {
 }
 
 func (t *TCPTransport) Send(addr string, data any) error {
-	t.send(addr, data)
-	return nil
+	return t.send(addr, data)
 }
 
 func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) error {
@@ -104,10 +103,10 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 		return peerNode, nil
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
-	t.addConnection(conn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
+	t.addConnection(conn)
 
 	return t.addConnection(conn), nil
 }

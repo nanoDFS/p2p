@@ -41,6 +41,8 @@ func TestSend(t *testing.T) {
 		t.Errorf("Failed to send message to server: %s, %v", port, err)
 	}
 
+	server.Stop()
+
 	if err := node.Send(port, data); err != nil {
 		t.Errorf("Failed to send message to server: %s, %v", port, err)
 	}
