@@ -40,7 +40,7 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 	return &TCPTransport{
 
 		ListenAddr:        address,
-		IncommingMsgQueue: make(chan Message),
+		IncommingMsgQueue: make(chan Message, 10),
 		Encoder:           encoder.GOBEncoder{},
 		PeersMap:          make(map[string]peer.Peer),
 		wg:                sync.WaitGroup{},
@@ -186,6 +186,8 @@ func (t *TCPTransport) addConnection(conn net.Conn) peer.Peer {
 }
 
 func (t *TCPTransport) dropConnection(addr string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if conn, _ := t.getConnection(addr); conn != nil {
 		delete(t.PeersMap, conn.GetAddress().String())
 		return conn.Close()
