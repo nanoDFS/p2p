@@ -188,7 +188,8 @@ func (t *TCPTransport) addConnection(conn net.Conn) peer.Peer {
 func (t *TCPTransport) dropConnection(addr string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if conn, _ := t.getConnection(addr); conn != nil {
+	tcp_addr := t.buildAddress(addr)
+	if conn := t.PeersMap[tcp_addr]; conn != nil {
 		delete(t.PeersMap, conn.GetAddress().String())
 		return conn.Close()
 	} else {
