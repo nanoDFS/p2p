@@ -29,8 +29,8 @@ func TestSend(t *testing.T) {
 	go func() {
 		for {
 			var msg string
-			server.Consume(encoder.GOBDecoder{}, &msg)
-			log.Println(msg)
+			addr, _ := server.Consume(encoder.GOBDecoder{}, &msg)
+			log.Println(msg, addr)
 			if data != msg {
 				t.Errorf("Expected %s, found %s", data, msg)
 			}

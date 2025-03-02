@@ -17,7 +17,8 @@ import (
 )
 
 type Message struct {
-	Payload []byte
+	RemoteAddr string
+	Payload    []byte
 }
 
 type TCPTransport struct {
@@ -67,9 +68,13 @@ func (t *TCPTransport) Send(addr string, data any) error {
 	return t.send(addr, data)
 }
 
-func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) error {
+func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) (string, error) {
 	data := <-t.IncommingMsgQueue
-	return decoder.Decode(bytes.NewBuffer(data.Payload), writer)
+	err := decoder.Decode(bytes.NewBuffer(data.Payload), writer)
+	if err != nil {
+		return "", err
+	}
+	return data.RemoteAddr, nil
 }
 
 func (t *TCPTransport) Close(addr string) error {
@@ -162,7 +167,7 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 		}
 
 		log.Debugf("Recieved message of length %d from %s", n, conn.RemoteAddr().String())
-		t.IncommingMsgQueue <- Message{Payload: buffer[:n]}
+		t.IncommingMsgQueue <- Message{RemoteAddr: conn.RemoteAddr().String(), Payload: buffer[:n]}
 
 	}
 }
