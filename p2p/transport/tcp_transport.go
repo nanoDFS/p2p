@@ -146,7 +146,7 @@ func (t *TCPTransport) handleConnection(conn net.Conn) error {
 
 	defer func() {
 		t.dropConnection(conn.RemoteAddr().String())
-		log.Infof("Dropping connection: %s\n", conn.RemoteAddr())
+		log.Debugf("Dropping connection: %s\n", conn.RemoteAddr())
 	}()
 
 	for {
