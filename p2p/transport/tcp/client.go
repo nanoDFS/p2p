@@ -29,7 +29,6 @@ func (t *TCPTransport) send(addr string, data any) error {
 	}
 	log.Debugf("successfully wrote %d bytes to %s", n, addr)
 
-	go t.handleConnection(peerNode.GetConnection())
 	return nil
 }
 
@@ -43,6 +42,7 @@ func (t *TCPTransport) dial(addr string) (peer.Peer, error) {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
 	t.addConnection(conn)
+	go t.handleConnection(conn)
 
 	return t.addConnection(conn), nil
 }
