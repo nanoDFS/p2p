@@ -76,3 +76,10 @@ func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) (string, err
 	}
 	return data.RemoteAddr, nil
 }
+
+func (t *TCPTransport) BroadCast(data any) error {
+	for _, peer := range t.PeersMap {
+		go t.send(peer.GetAddress().String(), data)
+	}
+	return nil
+}
