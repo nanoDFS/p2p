@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/nanoDFS/p2p/p2p/encoder"
+	"github.com/nanoDFS/p2p/p2p/transport/tcp"
 )
 
-func getServer(addr string) (*TCPTransport, error) {
-	return NewTCPTransport(addr)
+func getServer(addr string) (*tcp.TCPTransport, error) {
+	return tcp.NewTCPTransport(addr)
 }
 
 func TestListen(t *testing.T) {
@@ -24,7 +25,7 @@ func TestSend(t *testing.T) {
 	port := ":8090"
 	server, _ := getServer(port)
 	server.Listen()
-	node, _ := NewTCPTransport(":8800")
+	node, _ := tcp.NewTCPTransport(":8800")
 	data := "TCP is really amazing"
 	go func() {
 		for {
@@ -47,7 +48,7 @@ func TestSend(t *testing.T) {
 		t.Errorf("Failed to send message to server: %s, %v", port, err)
 	}
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 2)
 }
 
 func TestStopServer(t *testing.T) {
