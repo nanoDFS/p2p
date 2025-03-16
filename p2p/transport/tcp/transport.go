@@ -17,6 +17,7 @@ type Message struct {
 	Payload    []byte
 }
 
+// TCPTransport implements Transport
 type TCPTransport struct {
 	ListenAddr        net.Addr
 	IncommingMsgQueue chan Message
@@ -45,6 +46,7 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 	}, nil
 }
 
+// Listen starts server, accepts new connection
 func (t *TCPTransport) Listen() error {
 	var err error
 	t.listener, err = net.Listen(t.ListenAddr.Network(), t.ListenAddr.String())
@@ -56,18 +58,23 @@ func (t *TCPTransport) Listen() error {
 	return nil
 }
 
+// Stop stops accepting new connections
+// Still it can send & recieve messages on existing connection
 func (t *TCPTransport) Stop() error {
 	return t.listener.Close()
 }
 
+// Send sends message
 func (t *TCPTransport) Send(addr string, data any) error {
 	return t.send(addr, data)
 }
 
+// Close drops existing connection
 func (t *TCPTransport) Close(addr string) error {
 	return t.dropConnection(addr)
 }
 
+// Consume consumes message from message queue
 func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) (string, error) {
 	data := <-t.IncommingMsgQueue
 	err := decoder.Decode(bytes.NewBuffer(data.Payload), writer)
@@ -77,6 +84,7 @@ func (t *TCPTransport) Consume(decoder encoder.Decoder, writer any) (string, err
 	return data.RemoteAddr, nil
 }
 
+// BroadCast broadcasts message to all peers
 func (t *TCPTransport) BroadCast(data any) error {
 	for _, peer := range t.PeersMap {
 		go t.send(peer.GetAddress().String(), data)
